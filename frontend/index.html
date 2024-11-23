@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>標題未定</title>
+    <style>
+        body {
+            display: flex;
+        }
+        #menu {
+            width: 200px;
+            border-right: 1px solid #ccc;
+            padding: 10px;
+        }
+        #video-container {
+            flex-grow: 1;
+            padding: 10px;
+        }
+        .course-title {
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        #view-count {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <h2>大標題</h2>
+        <div class="course-title" onclick="loadVideo('FAF_特別.mp4')">FAF_特別</div>
+        <div class="course-title" onclick="loadVideo('霍爾的移動城堡.mp4')">霍爾的移動城堡</div>
+        <div class="course-title" onclick="loadVideo('3.mp4')">影片 3</div>
+        <h2>大標題2</h2>
+        <div class="course-title" onclick="loadVideo('video2.mp4')">影片 2</div>
+        <div class="course-title" onclick="loadVideo('video3.mp4')">影片 3</div>
+        <h2>youtube</h2>
+        <div class="course-title" onclick="loadYouTubeVideo('https://www.youtube.com/watch?v=Xa4dn1MEjec')">youtube 1</div>
+    </div>
+    <div id="video-container"></div>
+        <iframe id="youtube-player" width="600" height="400" src="" frameborder="0" allowfullscreen></iframe>
+        <div id="view-count">觀看次數: <span id="count">0</span></div>
+    </div>
+    <div id="video-container">
+        <h2>觀看影片</h2>
+        <video id="video-player" width="600" controls>
+            <source id="video-source" src="" type="video/mp4">
+            您的浏览器不支持视频标签。
+        </video>
+        <div id="view-count">觀看次數: <span id="count">0</span></div>
+    </div>
+
+    <script>
+        let viewCount = 0; 
+        let currentVideo = ''; 
+        let videoProgress = {}; 
+        let player;
+
+        function extractVideoID(url) {
+            const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+            const match = url.match(regex);
+            return match ? match[1] : null; // 返回视频ID
+        }
+
+        function loadYouTubeVideo(url) {
+            const videoId = extractVideoID(url);
+            if (videoId) {
+                const iframe = document.getElementById('youtube-player');
+                iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`; // 启用JavaScript API
+                incrementViewCount(); // 增加观看次数
+                currentVideo = videoId; // 更新当前视频
+                player = new YT.Player(iframe, {
+                    events: {
+                        'onReady': onPlayerReady
+                    }
+                });
+            } else {
+                alert("请输入有效的YouTube视频链接。");
+            }
+        }
+
+        function onPlayerReady(event) {
+            setInterval(recordProgress, 1000); // 每秒记录一次进度
+        }
+        function recordProgress() {
+            if (player) {
+                const currentTime = player.getCurrentTime(); // 获取当前播放时间
+                videoProgress[currentVideo] = currentTime; // 记录当前播放时间
+                console.log(`当前播放时间: ${currentTime}`);
+            }
+        }
+
+        // 加载YouTube API
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function loadVideo(videoFile) {
+            const videoSource = document.getElementById('video-source');
+            videoSource.src = videoFile;
+            const videoPlayer = document.getElementById('video-player');
+
+            videoPlayer.load();
+            // 如果当前视频与选择的视频相同，恢复播放进度
+            if (currentVideo === videoFile) {
+                console.log("time ore");
+                videoPlayer.currentTime = videoProgress[videoFile] || 10; // 恢复进度
+            } else {
+                videoProgress[currentVideo] = videoPlayer.currentTime; // 记录上一个视频的进度
+                currentVideo = videoFile; // 更新当前视频
+            }
+            videoPlayer.currentTime = videoProgress[videoFile] || 0;
+            videoPlayer.play();
+            incrementViewCount(); // 增加观看次数
+        }
+
+        function incrementViewCount() {
+            viewCount++; // 增加计数
+            document.getElementById('count').innerText = viewCount; // 更新显示
+        }
+
+        // 监听视频播放进度变化
+        document.getElementById('video-player').addEventListener('timeupdate', function() {
+            if (currentVideo) {
+                videoProgress[currentVideo] = this.currentTime; // 记录当前播放时间
+                console.log( videoProgress[currentVideo]);
+            }
+        });
+        
+    </script>
+</body>
+</html>
