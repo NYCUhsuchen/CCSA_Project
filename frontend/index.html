@@ -47,19 +47,21 @@
     <script>
         let viewCount = 0; 
         let currentVideo = ''; 
-        let videoProgress = {}; 
+        let lastProgress = 0; 
         let player;
+        let courseId = -1;
         /*
         let data = {
             "LangGraph: Intro": {
+                id:"1",
                 description: "In this video ",
                 video_url: "https://www.youtube.com/watch?v=5h-JBkySK34&list=PLfaIDFEXuae16n2TWUkKq5PgJ0w6Pkwtg&index=1"
-            },
-            "LangGraph: Agent Executor": {
-                description: "In this video we will go over how to ",
-                video_url: "https://www.youtube.com/watch?v=9dXp5q3OFdQ&list=PLfaIDFEXuae16n2TWUkKq5PgJ0w6Pkwtg&index=2"
-            }
-        };
+                },
+                "LangGraph: Agent Executor": {
+                    description: "In this video we will go over how to ",
+                    video_url: "https://www.youtube.com/watch?v=9dXp5q3OFdQ&list=PLfaIDFEXuae16n2TWUkKq5PgJ0w6Pkwtg&index=2"
+                    }
+                    };
         const courseList = document.getElementById('menu');
         for (let title in data) {
             const course = data[title]; // 課程資料
@@ -73,7 +75,11 @@
             courseList.appendChild(courseDiv);
         }
         */
-        fetch('http://localhost:3306/api/courses')
+
+
+        //以下是網頁開啟時會從資料庫中抓取課程資料
+        function getCourses(){
+            fetch('http://localhost:3306/api/courses')
             .then(response => response.json())
             .then(data => {
                 const courseList = document.getElementById('course-list');
@@ -81,11 +87,61 @@
                     const courseDiv = document.createElement('div');
                     courseDiv.className = 'course-title';
                     courseDiv.innerText = course.title;
-                    courseDiv.onclick = () => loadYouTubeVideo(course.video_url);
+                    courseDiv.onclick = () => userClickvideoLink(course.id,course.video_url);
                     courseList.appendChild(courseDiv);
                 });
             })
             .catch(error => console.error('Error fetching courses:', error));
+        }
+        
+
+
+        //得到該id使用的progresss
+        function getWatchProgress(){
+            fetch('http://localhost:3306/api/video_watch_progress')
+            .then(response => response.json())
+            .then(data => {
+                //內容代定義
+                //從video_watch_progress 好像可以得到其他同學的學習情況ㄟ
+                /*
+                data.forEach(course => {
+                    const courseDiv = document.createElement('div');
+                    courseDiv.className = 'course-title';
+                    courseDiv.innerText = course.title;
+                    courseDiv.onclick = () => userClickvideoLink(course.id,course.video_url);
+                    courseList.appendChild(courseDiv);
+                });*/
+            })
+            .catch(error => console.error('Error fetching courses:', error));
+
+        }
+        //儲存用戶資料並回傳
+        function saveWatchProgress() {
+            const progressData = {
+                user_id: userId,
+                course_id: courseId,
+                last_progress: lastProgress
+            };
+            if(course_id != -1) {
+                fetch('http://localhost:3000/api/video-progress', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(progressData)
+                })
+                .then(response => {
+                    if (response.ok) {
+                        console.log('Progress saved successfully');
+                    } else {
+                        console.error('Error saving progress');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        }
+
+
         
         function extractVideoID(url) {
             const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
@@ -93,8 +149,20 @@
             return match ? match[1] : null; // 返回ID
         }
 
-        function loadYouTubeVideo(url) {
+
+
+        function userClickvideoLink(Id,url){
+            //先回傳目前記錄的課程id 進度條到資料庫
+            saveWatchProgress();
+            //再抓取資料庫中目標課程的進度條
+            getWatchProgress();
+            //再載入影片
+            loadYouTubeVideo(url);
+
+        }
+        function loadYouTubeVideo(url) {       
             const videoId = extractVideoID(url);
+            courseId = Id;
             if (videoId) {
                 const iframe = document.getElementById('youtube-player');
                 iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`; // 啟用JavaScript API
@@ -105,6 +173,7 @@
                         'onReady': onPlayerReady
                     }
                 });
+                player.seekTo(lastProgress, true);
             } else {
                 alert("無效連結。");
             }
@@ -116,17 +185,21 @@
         function recordProgress() {
             if (player) {
                 const currentTime = player.getCurrentTime(); // 當前撥放時間
-                videoProgress[currentVideo] = currentTime; // 紀錄當前撥放時間
+                lastProgress = currentTime; // 紀錄當前撥放時間
                 console.log(`當前播放時間: ${currentTime}`);
             }
         }
 
-        // load YouTube API
-        const tag = document.createElement('script');
-        tag.src = "https://www.youtube.com/iframe_api";
-        const firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
         
+        // 在網頁開啟時要做的function
+        window.onload = function() {
+            // load YouTube API
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            getCourses();
+        }
         function incrementViewCount() {
             viewCount++; // count++
             document.getElementById('count').innerText = viewCount; // update
