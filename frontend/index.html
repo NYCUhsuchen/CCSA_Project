@@ -42,15 +42,7 @@
         <iframe id="youtube-player" width="600" height="400" src="" frameborder="0" allowfullscreen></iframe>
         <div id="view-count">觀看次數: <span id="count">0</span></div>
     </div>
-    <div id="video-container">
-        <h2>觀看影片</h2>
-        <video id="video-player" width="600" controls>
-            <source id="video-source" src="" type="video/mp4">
-            錯誤訊息
-        </video>
-        <div id="view-count">觀看次數: <span id="count">0</span></div>
-    </div>
-
+    
     <script>
         let viewCount = 0; 
         let currentVideo = ''; 
@@ -96,38 +88,12 @@
         tag.src = "https://www.youtube.com/iframe_api";
         const firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
-        function loadVideo(videoFile) {
-            const videoSource = document.getElementById('video-source');
-            videoSource.src = videoFile;
-            const videoPlayer = document.getElementById('video-player');
-
-            videoPlayer.load();
-            // 恢復播放進度
-            if (currentVideo === videoFile) {
-                console.log("time ore");
-                videoPlayer.currentTime = videoProgress[videoFile] || 10; // 恢復播放進度
-            } else {
-                videoProgress[currentVideo] = videoPlayer.currentTime; 
-                currentVideo = videoFile; // 
-            }
-            videoPlayer.currentTime = videoProgress[videoFile] || 0;
-            videoPlayer.play();
-            incrementViewCount(); // 
-        }
-
+        
         function incrementViewCount() {
             viewCount++; // count++
             document.getElementById('count').innerText = viewCount; // update
         }
 
-        // 监听视频播放进度变化
-        document.getElementById('video-player').addEventListener('timeupdate', function() {
-            if (currentVideo) {
-                videoProgress[currentVideo] = this.currentTime; // 
-                console.log( videoProgress[currentVideo]);
-            }
-        });
         
     </script>
 </body>
