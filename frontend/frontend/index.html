@@ -6,7 +6,17 @@
     <title>標題未定</title>
     <style>
         body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #f4f4f4; /* 背景顏色 */
+        }
+        header {
+            background-color: #4A90E2; /* 標題背景顏色 */
+            color: white;
+            padding: 10px 20px;
             display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         #menu {
             width: 200px;
@@ -24,24 +34,51 @@
         #view-count {
             margin-top: 10px;
         }
+        .user-id {
+            font-size: 16px;
+        }
+        .container {
+            display: flex;
+            padding: 20px;
+        }
+        .course-list {
+            flex: 1;
+            margin-right: 20px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .video-container {
+            width: 300px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #333;
+            margin-top: 0; 
+        }
+        .course-item {
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
-    <div id="menu">
-        <h1 id="course-list">Menu</h1>
-        <!--
-            <div id="course-list" >
-            <h2>大標題1</h2>
-            <div class="course-title" onclick="loadYouTubeVideo('https://www.youtube.com/watch?v=Xa4dn1MEjec')">youtube 1</div>
-            <h2>大標題2</h2>
-            <div class="course-title" onclick="loadYouTubeVideo('https://www.youtube.com/watch?v=Xa4dn1MEjec')">youtube 1</div>
-            <h2>youtube</h2>
-            <div class="course-title" onclick="loadYouTubeVideo('https://www.youtube.com/watch?v=Xa4dn1MEjec')">youtube 1</div>
-        -->
-    </div>
-    <div id="video-container"></div>
-        <iframe id="youtube-player" width="600" height="400" src="" frameborder="0" allowfullscreen></iframe>
-        <div id="view-count">觀看次數: <span id="count">0</span></div>
+    <header>
+        <h1>數位教學平台</h1>
+        <div class="user-id">USERID: 123456</div> <!-- 這裡顯示 USERID -->
+    </header>
+    <div class="container">
+        <div id="course-list" class="course-list">
+            <h2>當期課程</h2>
+            
+        </div>
+        <div id="video-container">
+            <iframe id="youtube-player" width="600" height="400" src="" frameborder="0" allowfullscreen></iframe>
+            <div id="view-count">觀看次數: <span id="count">0</span></div>
+        </div>
     </div>
     
     <script>
@@ -52,9 +89,32 @@
         let courseId = -1;
         let progressData = {};
 
+        function backendtest(){
+            fetch('http://localhost:5000/api/user_status')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('網絡錯誤');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 根據返回的數據顯示用戶狀態
+                const userInfoDiv = document.getElementById('user-info');
+                if (data.logged_in) {
+                    userInfoDiv.innerText = `您已登入，使用者名稱: ${data.username}`;
+                } else {
+                    userInfoDiv.innerText = '您尚未登入';
+                }
+            })
+            .catch(error => {
+                console.error('錯誤:', error);
+                document.getElementById('user-info').innerText = '無法連接到後端';
+            });
+
+        }
 
         
-        /*
+        
         let data = {
             "LangGraph: Intro": {
                 id:"1",
@@ -66,22 +126,20 @@
                     video_url: "https://www.youtube.com/watch?v=9dXp5q3OFdQ&list=PLfaIDFEXuae16n2TWUkKq5PgJ0w6Pkwtg&index=2"
                     }
                     };
-        const courseList = document.getElementById('menu');
+        const courseList = document.getElementById('course-list');
         for (let title in data) {
             const course = data[title]; // 課程資料
-            const coursetitle = document.createElement('h4');
-            coursetitle.innerText = title; // 使用標題
-            courseList.appendChild(coursetitle);
-            const courseDiv = document.createElement('div');
+            //const coursetitle = document.createElement('h4');
+            //coursetitle.innerText = title; // 使用標題
+            //courseList.appendChild(coursetitle);
+            const courseDiv = document.createElement('h2');
             courseDiv.className = 'course-title';
-            courseDiv.innerText = "link"; // 使用课程标题
+            courseDiv.innerText = title; // 使用课程标题
             courseDiv.onclick = () => loadYouTubeVideo(course.video_url); // 点击事件
             courseList.appendChild(courseDiv);
         }
-        */
         
-
-
+        
         //以下是網頁開啟時會從資料庫中抓取課程資料
         function getCourses(){
             fetch('http://localhost:3306/api/courses')
@@ -204,7 +262,8 @@
         }
         // 在網頁開啟時要做的function
         window.onload = function() {
-            getUserIdinUrl();
+            backendtest();
+            //getUserIdinUrl();
             loadYoutubeAPI();
             getCourses();
         }
