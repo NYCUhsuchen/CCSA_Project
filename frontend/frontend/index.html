@@ -68,7 +68,7 @@
 <body>
     <header>
         <h1>數位教學平台</h1>
-        <div class="user-id">USERID: 123456</div> <!-- 這裡顯示 USERID -->
+        <div class="user-id">USERID: 123456   登出</div> <!-- 這裡顯示 USERID -->
     </header>
     <div class="container">
         <div id="course-list" class="course-list">
@@ -127,12 +127,14 @@
                     }
                     };
         const courseList = document.getElementById('course-list');
+        const coursetitle = document.createElement('h2');
+        coursetitle.innerText = "LangGraph";
+        courseList.appendChild(coursetitle);
         for (let title in data) {
             const course = data[title]; // 課程資料
-            //const coursetitle = document.createElement('h4');
             //coursetitle.innerText = title; // 使用標題
             //courseList.appendChild(coursetitle);
-            const courseDiv = document.createElement('h2');
+            const courseDiv = document.createElement('div');
             courseDiv.className = 'course-title';
             courseDiv.innerText = title; // 使用课程标题
             courseDiv.onclick = () => loadYouTubeVideo(course.video_url); // 点击事件
