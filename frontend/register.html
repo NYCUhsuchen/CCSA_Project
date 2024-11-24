@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登入頁面</title>
+    <title>創建帳號</title>
     <style>
         body {
             display: flex;
@@ -25,6 +25,7 @@
             color: #4A90E2; /* 標題顏色 */
             margin-bottom: 20px;
         }
+        input[type="email"],
         input[type="text"],
         input[type="password"] {
             width: 100%;
@@ -55,14 +56,19 @@
 </head>
 <body>
     <div class="container">
-        <h1>國立陽明交通大學</h1>
-        <h2>數位教學平台</h2>
-        <form action="/api/login" method="POST">
+        <h1>創建帳號</h1>
+        <form action="/api/register" method="POST">
+            <input type="email" id="email" name="email" placeholder="電子郵件" required>
             <input type="text" id="username" name="username" placeholder="帳號" required>
             <input type="password" id="password" name="password" placeholder="密碼" required>
-            <button type="submit">登入</button>
+            <label for="role">角色:</label>
+            <select id="role" name="role" required>
+                <option value="student">學生</option>
+                <option value="teacher">老師</option>
+            </select>
+            <button type="submit">創建帳號</button>
         </form>
-        <p>還沒有帳號？<a href="register.html">創建一個新帳號</a></p>
+        <p>已經有帳號了？<a href="login.html">登入</a></p>
         <div class="footer">校外使用者請記錄密碼及取回驗證碼</div>
     </div>
 </body>
