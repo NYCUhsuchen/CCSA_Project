@@ -47,10 +47,11 @@
     <script>
         let viewCount = 0; 
         let currentVideo = ''; 
-        let lastProgress = 0; 
+        let lastProgress = 150; 
         let player;
         let courseId = -1;
-        /*
+        let progressData = {};
+        
         let data = {
             "LangGraph: Intro": {
                 id:"1",
@@ -74,7 +75,7 @@
             courseDiv.onclick = () => loadYouTubeVideo(course.video_url); // 点击事件
             courseList.appendChild(courseDiv);
         }
-        */
+        
 
 
         //以下是網頁開啟時會從資料庫中抓取課程資料
@@ -94,10 +95,8 @@
             .catch(error => console.error('Error fetching courses:', error));
         }
         
-
-
         //得到該id使用的progresss
-        function getWatchProgress(){
+        function getWatchProgress(Id){
             fetch('http://localhost:3306/api/video_watch_progress')
             .then(response => response.json())
             .then(data => {
@@ -117,11 +116,13 @@
         }
         //儲存用戶資料並回傳
         function saveWatchProgress() {
-            const progressData = {
+            progressData = {
                 user_id: userId,
                 course_id: courseId,
                 last_progress: lastProgress
-            };
+            };            
+        }
+        function uploadWatchProgress(){
             if(course_id != -1) {
                 fetch('http://localhost:3000/api/video-progress', {
                     method: 'POST',
@@ -139,30 +140,21 @@
                 })
                 .catch(error => console.error('Error:', error));
             }
-        }
-
-
+        }   
         
-        function extractVideoID(url) {
-            const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-            const match = url.match(regex);
-            return match ? match[1] : null; // 返回ID
-        }
-
-
-
         function userClickvideoLink(Id,url){
             //先回傳目前記錄的課程id 進度條到資料庫
             saveWatchProgress();
+            uploadWatchProgress();
             //再抓取資料庫中目標課程的進度條
-            getWatchProgress();
+            getWatchProgress(Id);
             //再載入影片
             loadYouTubeVideo(url);
 
         }
         function loadYouTubeVideo(url) {       
             const videoId = extractVideoID(url);
-            courseId = Id;
+            //courseId = Id;
             if (videoId) {
                 const iframe = document.getElementById('youtube-player');
                 iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`; // 啟用JavaScript API
@@ -178,7 +170,12 @@
                 alert("無效連結。");
             }
         }
-
+        
+        function extractVideoID(url) {
+            const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+            const match = url.match(regex);
+            return match ? match[1] : null; // 返回ID
+        }
         function onPlayerReady(event) {
             setInterval(recordProgress, 1000); // 每秒紀錄一次進度
         }
@@ -190,14 +187,16 @@
             }
         }
 
-        
-        // 在網頁開啟時要做的function
-        window.onload = function() {
+        function loadYoutubeAPI(){
             // load YouTube API
             const tag = document.createElement('script');
             tag.src = "https://www.youtube.com/iframe_api";
             const firstScriptTag = document.getElementsByTagName('script')[0];
             firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+        // 在網頁開啟時要做的function
+        window.onload = function() {
+            loadYoutubeAPI();
             getCourses();
         }
         function incrementViewCount() {
