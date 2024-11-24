@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>標題未定</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #f4f4f4; /* 背景顏色 */
+        }
+        header {
+            background-color: #4A90E2; /* 標題背景顏色 */
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #menu {
+            width: 200px;
+            border-right: 1px solid #ccc;
+            padding: 10px;
+        }
+        #video-container {
+            flex-grow: 1;
+            padding: 10px;
+        }
+        .course-title {
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        #block{
+            background-color: #4A90E2; 
+            color: white;
+            border: 1px solid #ccc; 
+            padding: 8px;
+        }
+        .inside {
+            background-color: #f9f9f9;
+        }
+        #view-count {
+            margin-top: 10px;
+        }
+        .user-id {
+            font-size: 16px;
+        }
+        .container {
+            display: flex;
+            padding: 20px;
+        }
+        .course-list {
+            flex: 1;
+            margin-right: 20px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .video-container {
+            width: 300px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #333;
+            margin-top: 0; 
+        }
+        .course-item {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>數位教學平台</h1>
+        <div class="user-id">USERID: 123456   登出</div> <!-- 這裡顯示 USERID -->
+    </header>
+    <div class="container">
+        <div id="course-list" class="course-list">
+            <h2>當期課程</h2>
+            
+        </div>
+        <div id="video-container">
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                <thead>
+                    <tr style="background-color: #4A90E2; color: white;">
+                        <th style="border: 1px solid #ccc; padding: 10px;">課程名稱</th>
+                        <th style="border: 1px solid #ccc; padding: 10px;">作業名稱</th>
+                        <th style="border: 1px solid #ccc; padding: 10px;">剩餘期限</th>
+                        <th style="border: 1px solid #ccc; padding: 10px;">繳交期限</th>
+                        <th style="border: 1px solid #ccc; padding: 10px;">作業狀態</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background-color: #f9f9f9;">
+                        <td style="border: 1px solid #ccc; padding: 10px;">LangGraph: Intro</td>
+                        <td style="border: 1px solid #ccc; padding: 10px;">homework1</td>
+                        <td style="border: 1px solid #ccc; padding: 10px;">done</td>
+                        <td style="border: 1px solid #ccc; padding: 10px;">2024-11-26</td>
+                        <td style="border: 1px solid #ccc; padding: 10px;">完成</td>
+                    </tr>
+                    <tr style="background-color: #f9f9f9;">
+                        <td style="border: 1px solid #ccc; padding: 10px;">LangGraph: Intro</td>
+                        <td style="border: 1px solid #ccc; padding: 10px;">homework2</td>
+                        <td style="border: 1px solid #ccc; padding: 10px;">5</td>
+                        <td style="border: 1px solid #ccc; padding: 10px;">2024-11-30</td>
+                        <td style="border: 1px solid #ccc; padding: 10px;">進行中</td>
+                    </tr>
+                    <tr style="background-color: #f9f9f9;">
+                        <td style="border: 1px solid #ccc; padding: 10px;">LangGraph: Agent Executor</td>
+                        <td style="border: 1px solid #ccc; padding: 10px;">homework1</td>
+                        <td style="border: 1px solid #ccc; padding: 10px;">7</td>
+                        <td style="border: 1px solid #ccc; padding: 10px;">2024-12-2</td>
+                        <td style="border: 1px solid #ccc; padding: 10px;">未完成</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>        
+    </div>
+    <div id="announcement-section" style="margin-top: 20px; padding: 20px; background-color: #f0f8ff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
+        <h2>公告欄</h2>
+        <ul style="list-style-type: none; padding: 0;">
+            <li>📅 課程報名截止日期：2024-11-15</li>
+            <li>📝 請確保按時提交作業！</li>
+            <li>🔔 下週將舉行線上研討會，請提前報名。</li>
+        </ul>
+    </div>
+    
+    <script>
+        let viewCount = 0; 
+        let currentVideo = ''; 
+        let lastProgress = 150; 
+        let player;
+        let courseId = -1;
+        let progressData = {};
+
+        function backendtest(){
+            fetch('http://localhost:5000/api/user_status')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('網絡錯誤');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 根據返回的數據顯示用戶狀態
+                const userInfoDiv = document.getElementById('user-info');
+                if (data.logged_in) {
+                    userInfoDiv.innerText = `您已登入，使用者名稱: ${data.username}`;
+                } else {
+                    userInfoDiv.innerText = '您尚未登入';
+                }
+            })
+            .catch(error => {
+                console.error('錯誤:', error);
+                document.getElementById('user-info').innerText = '無法連接到後端';
+            });
+
+        }
+
+        
+        
+        let data = {
+            "LangGraph: Intro": {
+                id:"1",
+                description: "In this video ",
+                video_url: "https://www.youtube.com/watch?v=5h-JBkySK34&list=PLfaIDFEXuae16n2TWUkKq5PgJ0w6Pkwtg&index=1"
+                },
+                "LangGraph: Agent Executor": {
+                    description: "In this video we will go over how to ",
+                    video_url: "https://www.youtube.com/watch?v=9dXp5q3OFdQ&list=PLfaIDFEXuae16n2TWUkKq5PgJ0w6Pkwtg&index=2"
+                    }
+                    };
+        const courseList = document.getElementById('course-list');
+        const coursetitle = document.createElement('h2');
+        coursetitle.innerText = "LangGraph";
+        courseList.appendChild(coursetitle);
+        for (let title in data) {
+            const course = data[title]; // 課程資料
+            //coursetitle.innerText = title; // 使用標題
+            //courseList.appendChild(coursetitle);
+            const courseDiv = document.createElement('div');
+            courseDiv.className = 'course-title';
+            courseDiv.innerText = title; // 使用课程标题
+            courseDiv.onclick = () => loadYouTubeVideo(course.video_url); // 点击事件
+            courseList.appendChild(courseDiv);
+        }
+        
+        
+        //以下是網頁開啟時會從資料庫中抓取課程資料
+        function getCourses(){
+            fetch('http://localhost:3306/api/courses')
+            .then(response => response.json())
+            .then(data => {
+                const courseList = document.getElementById('course-list');
+                data.forEach(course => {
+                    const courseDiv = document.createElement('div');
+                    courseDiv.className = 'course-title';
+                    courseDiv.innerText = course.title;
+                    courseDiv.onclick = () => userClickvideoLink(course.id,course.video_url);
+                    courseList.appendChild(courseDiv);
+                });
+            })
+            .catch(error => console.error('Error fetching courses:', error));
+        }
+        
+        //得到該id使用的progresss
+        function getWatchProgress(Id){
+            fetch('http://localhost:3306/api/video_watch_progress')
+            .then(response => response.json())
+            .then(data => {
+                //內容代定義
+                //從video_watch_progress 好像可以得到其他同學的學習情況ㄟ
+                /*
+                data.forEach(course => {
+                    const courseDiv = document.createElement('div');
+                    courseDiv.className = 'course-title';
+                    courseDiv.innerText = course.title;
+                    courseDiv.onclick = () => userClickvideoLink(course.id,course.video_url);
+                    courseList.appendChild(courseDiv);
+                });*/
+            })
+            .catch(error => console.error('Error fetching courses:', error));
+
+        }
+        //儲存用戶資料並回傳
+        function saveWatchProgress() {
+            progressData = {
+                user_id: userId,
+                course_id: courseId,
+                last_progress: lastProgress
+            };            
+        }
+        function uploadWatchProgress(){
+            if(course_id != -1) {
+                fetch('http://localhost:3000/api/video-progress', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(progressData)
+                })
+                .then(response => {
+                    if (response.ok) {
+                        console.log('Progress saved successfully');
+                    } else {
+                        console.error('Error saving progress');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        }   
+        
+        function userClickvideoLink(Id,url){
+            //先回傳目前記錄的課程id 進度條到資料庫
+            saveWatchProgress();
+            uploadWatchProgress();
+            //再抓取資料庫中目標課程的進度條
+            getWatchProgress(Id);
+            //再載入影片
+            loadYouTubeVideo(url);
+
+        }
+        function loadYouTubeVideo(url) {       
+            const videoId = extractVideoID(url);
+            //courseId = Id;
+            if (videoId) {
+                const iframe = document.getElementById('youtube-player');
+                iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`; // 啟用JavaScript API
+                incrementViewCount(); // 觀看次數++
+                currentVideo = videoId; // 更新當前影片
+                player = new YT.Player(iframe, {
+                    events: {
+                        'onReady': onPlayerReady
+                    }
+                });
+                player.seekTo(lastProgress, true);
+            } else {
+                alert("無效連結。");
+            }
+        }
+        //獲取url中的userid
+        function getUserIdinUrl(){
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('userId');
+        }
+        function extractVideoID(url) {
+            const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+            const match = url.match(regex);
+            return match ? match[1] : null; // 返回ID
+        }
+        function onPlayerReady(event) {
+            setInterval(recordProgress, 1000); // 每秒紀錄一次進度
+        }
+        function recordProgress() {
+            if (player) {
+                const currentTime = player.getCurrentTime(); // 當前撥放時間
+                lastProgress = currentTime; // 紀錄當前撥放時間
+                console.log(`當前播放時間: ${currentTime}`);
+            }
+        }
+
+        function loadYoutubeAPI(){
+            // load YouTube API
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+        // 在網頁開啟時要做的function
+        window.onload = function() {
+            backendtest();
+            //getUserIdinUrl();
+            loadYoutubeAPI();
+            getCourses();
+        }
+        function incrementViewCount() {
+            viewCount++; // count++
+            document.getElementById('count').innerText = viewCount; // update
+        }
+
+        
+    </script>
+</body>
+</html>
