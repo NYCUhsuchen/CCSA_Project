@@ -51,6 +51,9 @@
         let player;
         let courseId = -1;
         let progressData = {};
+
+
+        
         /*
         let data = {
             "LangGraph: Intro": {
@@ -171,7 +174,11 @@
                 alert("無效連結。");
             }
         }
-        
+        //獲取url中的userid
+        function getUserIdinUrl(){
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('userId');
+        }
         function extractVideoID(url) {
             const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
             const match = url.match(regex);
@@ -197,6 +204,7 @@
         }
         // 在網頁開啟時要做的function
         window.onload = function() {
+            getUserIdinUrl();
             loadYoutubeAPI();
             getCourses();
         }
