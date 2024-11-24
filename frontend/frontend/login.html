@@ -46,24 +46,50 @@
         button:hover {
             background-color: #D68A1D; /* 按鈕懸停顏色 */
         }
-        .footer {
-            margin-top: 20px;
-            font-size: 12px;
-            color: #888888;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>國立陽明交通大學</h1>
         <h2>數位教學平台</h2>
-        <form action="/api/login" method="POST">
+        <form id="loginForm">
             <input type="text" id="username" name="username" placeholder="帳號" required>
             <input type="password" id="password" name="password" placeholder="密碼" required>
             <button type="submit">登入</button>
         </form>
         <p>還沒有帳號？<a href="register.html">創建一個新帳號</a></p>
-        <div class="footer">校外使用者請記錄密碼及取回驗證碼</div>
     </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // 防止表單默認提交
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            // 發送 POST 請求到後端
+            fetch('http://localhost:5000/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('登入失敗');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 假設後端返回用戶 ID，並重定向到 index.html
+                window.location.href = `index.html?userId=${data.userId}`;
+            })
+            .catch(error => {
+                console.error('錯誤:', error);
+                alert('登入失敗，請檢查帳號和密碼');
+            });
+        });
+    </script>
 </body>
 </html>
