@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>標題未定</title>
+    <style>
+        body {
+            display: flex;
+        }
+        #menu {
+            width: 200px;
+            border-right: 1px solid #ccc;
+            padding: 10px;
+        }
+        #video-container {
+            flex-grow: 1;
+            padding: 10px;
+        }
+        .course-title {
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        #view-count {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <h1 id="course-list">Menu</h1>
+        <!--
+            <div id="course-list" >
+            <h2>大標題1</h2>
+            <div class="course-title" onclick="loadYouTubeVideo('https://www.youtube.com/watch?v=Xa4dn1MEjec')">youtube 1</div>
+            <h2>大標題2</h2>
+            <div class="course-title" onclick="loadYouTubeVideo('https://www.youtube.com/watch?v=Xa4dn1MEjec')">youtube 1</div>
+            <h2>youtube</h2>
+            <div class="course-title" onclick="loadYouTubeVideo('https://www.youtube.com/watch?v=Xa4dn1MEjec')">youtube 1</div>
+        -->
+    </div>
+    <div id="video-container"></div>
+        <iframe id="youtube-player" width="600" height="400" src="" frameborder="0" allowfullscreen></iframe>
+        <div id="view-count">觀看次數: <span id="count">0</span></div>
+    </div>
+    
+    <script>
+        let viewCount = 0; 
+        let currentVideo = ''; 
+        let videoProgress = {}; 
+        let player;
+        /*
+        let data = {
+            "LangGraph: Intro": {
+                description: "In this video ",
+                video_url: "https://www.youtube.com/watch?v=5h-JBkySK34&list=PLfaIDFEXuae16n2TWUkKq5PgJ0w6Pkwtg&index=1"
+            },
+            "LangGraph: Agent Executor": {
+                description: "In this video we will go over how to ",
+                video_url: "https://www.youtube.com/watch?v=9dXp5q3OFdQ&list=PLfaIDFEXuae16n2TWUkKq5PgJ0w6Pkwtg&index=2"
+            }
+        };
+        const courseList = document.getElementById('menu');
+        for (let title in data) {
+            const course = data[title]; // 課程資料
+            const coursetitle = document.createElement('h4');
+            coursetitle.innerText = title; // 使用標題
+            courseList.appendChild(coursetitle);
+            const courseDiv = document.createElement('div');
+            courseDiv.className = 'course-title';
+            courseDiv.innerText = "link"; // 使用课程标题
+            courseDiv.onclick = () => loadYouTubeVideo(course.video_url); // 点击事件
+            courseList.appendChild(courseDiv);
+        }
+        */
+        fetch('http://localhost:3306/api/courses')
+            .then(response => response.json())
+            .then(data => {
+                const courseList = document.getElementById('course-list');
+                data.forEach(course => {
+                    const courseDiv = document.createElement('div');
+                    courseDiv.className = 'course-title';
+                    courseDiv.innerText = course.title;
+                    courseDiv.onclick = () => loadYouTubeVideo(course.video_url);
+                    courseList.appendChild(courseDiv);
+                });
+            })
+            .catch(error => console.error('Error fetching courses:', error));
+        
+        function extractVideoID(url) {
+            const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+            const match = url.match(regex);
+            return match ? match[1] : null; // 返回ID
+        }
+
+        function loadYouTubeVideo(url) {
+            const videoId = extractVideoID(url);
+            if (videoId) {
+                const iframe = document.getElementById('youtube-player');
+                iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`; // 啟用JavaScript API
+                incrementViewCount(); // 觀看次數++
+                currentVideo = videoId; // 更新當前影片
+                player = new YT.Player(iframe, {
+                    events: {
+                        'onReady': onPlayerReady
+                    }
+                });
+            } else {
+                alert("無效連結。");
+            }
+        }
+
+        function onPlayerReady(event) {
+            setInterval(recordProgress, 1000); // 每秒紀錄一次進度
+        }
+        function recordProgress() {
+            if (player) {
+                const currentTime = player.getCurrentTime(); // 當前撥放時間
+                videoProgress[currentVideo] = currentTime; // 紀錄當前撥放時間
+                console.log(`當前播放時間: ${currentTime}`);
+            }
+        }
+
+        // load YouTube API
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        
+        function incrementViewCount() {
+            viewCount++; // count++
+            document.getElementById('count').innerText = viewCount; // update
+        }
+
+        
+    </script>
+</body>
+</html>

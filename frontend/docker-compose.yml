@@ -1,0 +1,16 @@
+services:
+  frontend:  # 定義前端服務
+    image: nginx:latest  # 使用 Nginx 的最新版本映像
+    container_name: frontend  # 指定容器名稱為 frontend
+    volumes:  # 定義數據掛載點
+      - ./frontend:/usr/share/nginx/html  # 將前端應用代碼掛載到 Nginx 預設的 HTML 目錄中
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf  # 將本地的 Nginx 配置文件掛載到容器的 Nginx 配置目錄中
+    ports:
+      - "8080:80"  # 將主機的 8080 端口映射到容器的 80 端口，Nginx 默認端口
+    networks:
+      - backend_app_network  # 指定容器所屬的網絡
+
+networks:
+  backend_app_network:
+    external: true # 連接到後端的網路
+    driver: bridge
