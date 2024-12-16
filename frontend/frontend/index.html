@@ -84,13 +84,14 @@
     <script>
         let viewCount = 0; 
         let currentVideo = ''; 
-        let lastProgress = 150; 
+        let lastProgress = 0; 
         let player;
         let courseId = -1;
+        let userId = 0;
         let progressData = {};
 
         function backendtest(){
-            fetch('http://localhost:5000/api/user_status')
+            fetch('http://localhost:5001/api/user_status')
             .then(response => {
                 if (!response.ok) {
                     throw new Error('網絡錯誤');
@@ -115,44 +116,47 @@
 
         
         
-        let data = {
-            "LangGraph: Intro": {
-                id:"1",
-                description: "In this video ",
-                video_url: "https://www.youtube.com/watch?v=5h-JBkySK34&list=PLfaIDFEXuae16n2TWUkKq5PgJ0w6Pkwtg&index=1"
-                },
-                "LangGraph: Agent Executor": {
-                    description: "In this video we will go over how to ",
-                    video_url: "https://www.youtube.com/watch?v=9dXp5q3OFdQ&list=PLfaIDFEXuae16n2TWUkKq5PgJ0w6Pkwtg&index=2"
-                    }
-                    };
-        const courseList = document.getElementById('course-list');
-        const coursetitle = document.createElement('h2');
-        coursetitle.innerText = "LangGraph";
-        courseList.appendChild(coursetitle);
-        for (let title in data) {
-            const course = data[title]; // 課程資料
-            //coursetitle.innerText = title; // 使用標題
-            //courseList.appendChild(coursetitle);
-            const courseDiv = document.createElement('div');
-            courseDiv.className = 'course-title';
-            courseDiv.innerText = title; // 使用课程标题
-            courseDiv.onclick = () => loadYouTubeVideo(course.video_url); // 点击事件
-            courseList.appendChild(courseDiv);
-        }
+        // let data = {
+        //     "LangGraph: Intro": {
+        //         id:"1",
+        //         description: "In this video ",
+        //         video_url: "https://www.youtube.com/watch?v=5h-JBkySK34&list=PLfaIDFEXuae16n2TWUkKq5PgJ0w6Pkwtg&index=1"
+        //         },
+        //         "LangGraph: Agent Executor": {
+        //             description: "In this video we will go over how to ",
+        //             video_url: "https://www.youtube.com/watch?v=9dXp5q3OFdQ&list=PLfaIDFEXuae16n2TWUkKq5PgJ0w6Pkwtg&index=2"
+        //             }
+        //             };
+        // const courseList = document.getElementById('course-list');
+        // const coursetitle = document.createElement('h2');
+        // coursetitle.innerText = "LangGraph";
+        // courseList.appendChild(coursetitle);
+        // for (let title in data) {
+        //     const course = data[title]; // 課程資料
+        //     //coursetitle.innerText = title; // 使用標題
+        //     //courseList.appendChild(coursetitle);
+        //     const courseDiv = document.createElement('div');
+        //     courseDiv.className = 'course-title';
+        //     courseDiv.innerText = title; // 使用课程标题
+        //     courseDiv.onclick = () => loadYouTubeVideo(course.video_url); // 点击事件
+        //     courseList.appendChild(courseDiv);
+        // }
         
         
         //以下是網頁開啟時會從資料庫中抓取課程資料
         function getCourses(){
-            fetch('http://localhost:3306/api/courses')
+            fetch('http://localhost:5001/api/courses')
             .then(response => response.json())
             .then(data => {
                 const courseList = document.getElementById('course-list');
-                data.forEach(course => {
+                data.courses.forEach (course =>{
+                    console.log(course.title)
+                    //coursetitle.innerText = title; // 使用標題
+                    //courseList.appendChild(coursetitle);
                     const courseDiv = document.createElement('div');
                     courseDiv.className = 'course-title';
-                    courseDiv.innerText = course.title;
-                    courseDiv.onclick = () => userClickvideoLink(course.id,course.video_url);
+                    courseDiv.innerText =  course.title; // 使用课程标题
+                    courseDiv.onclick = () => userClickvideoLink(course.id,course.video_url); // 点击事件
                     courseList.appendChild(courseDiv);
                 });
             })
@@ -160,20 +164,11 @@
         }
         
         //得到該id使用的progresss
-        function getWatchProgress(Id){
-            fetch('http://localhost:3306/api/video_watch_progress')
+        function getWatchProgress(id,courseid){
+            fetch('http://localhost:5001/api/get_progress?id=${Id}&course_id=${courseid}')
             .then(response => response.json())
             .then(data => {
-                //內容代定義
-                //從video_watch_progress 好像可以得到其他同學的學習情況ㄟ
-                /*
-                data.forEach(course => {
-                    const courseDiv = document.createElement('div');
-                    courseDiv.className = 'course-title';
-                    courseDiv.innerText = course.title;
-                    courseDiv.onclick = () => userClickvideoLink(course.id,course.video_url);
-                    courseList.appendChild(courseDiv);
-                });*/
+                lastProgress = data.last_progress;
             })
             .catch(error => console.error('Error fetching courses:', error));
 
@@ -187,8 +182,8 @@
             };            
         }
         function uploadWatchProgress(){
-            if(course_id != -1) {
-                fetch('http://localhost:3000/api/video-progress', {
+            if(courseId != -1) {
+                fetch('http://localhost:5001/api/record_progress', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -206,19 +201,20 @@
             }
         }   
         
-        function userClickvideoLink(Id,url){
+        function userClickvideoLink(id,url){
             //先回傳目前記錄的課程id 進度條到資料庫
+            console.log(id,url);
+            courseId = id;
             saveWatchProgress();
             uploadWatchProgress();
             //再抓取資料庫中目標課程的進度條
-            getWatchProgress(Id);
+            getWatchProgress(userId,courseId);
             //再載入影片
             loadYouTubeVideo(url);
 
         }
         function loadYouTubeVideo(url) {       
             const videoId = extractVideoID(url);
-            //courseId = Id;
             if (videoId) {
                 const iframe = document.getElementById('youtube-player');
                 iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`; // 啟用JavaScript API
@@ -229,7 +225,6 @@
                         'onReady': onPlayerReady
                     }
                 });
-                player.seekTo(lastProgress, true);
             } else {
                 alert("無效連結。");
             }
@@ -237,7 +232,7 @@
         //獲取url中的userid
         function getUserIdinUrl(){
             const urlParams = new URLSearchParams(window.location.search);
-            const userId = urlParams.get('userId');
+            userId = urlParams.get('userId');
         }
         function extractVideoID(url) {
             const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
@@ -245,6 +240,7 @@
             return match ? match[1] : null; // 返回ID
         }
         function onPlayerReady(event) {
+            player.seekTo(lastProgress, true);
             setInterval(recordProgress, 1000); // 每秒紀錄一次進度
         }
         function recordProgress() {
@@ -264,8 +260,8 @@
         }
         // 在網頁開啟時要做的function
         window.onload = function() {
-            backendtest();
-            //getUserIdinUrl();
+            //backendtest();
+            getUserIdinUrl();
             loadYoutubeAPI();
             getCourses();
         }

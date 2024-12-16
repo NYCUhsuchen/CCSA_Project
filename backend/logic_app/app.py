@@ -61,32 +61,52 @@ def register():
     #return jsonify({"status": "success", "message": "註冊成功！"}), 200
     return  redirect('/')  # 註冊成功，返回200狀態碼
 
-@app.route('/api/login', methods=['GET', 'POST'])
-def login():
+@app.route('/api/log', methods=['GET', 'POST'])
+def test():
     if request.method == 'POST':
         # 接收表單提交的資料
-        username = request.form['username']
-        password = request.form['password']
+        data = request.get_json()
+        username = data['username']
+        password = data['password']
 
         cursor = db.cursor()
 
         # 查詢資料庫中是否有該用戶名和密碼匹配的記錄
-        sql = "SELECT * FROM Users WHERE name = %s AND password = %s"
+        sql = "SELECT * FROM users WHERE name = %s AND password = %s"
+        val = (username, password)
+        cursor.execute(sql, val)
+        user = cursor.fetchone()
+
+        cursor.close()
+        return jsonify({"userId": user[0]}),200
+
+@app.route('/api/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        # 接收表單提交的資料
+        data = request.get_json()
+        username = data['username']
+        password = data['password']
+
+        cursor = db.cursor()
+
+        # 查詢資料庫中是否有該用戶名和密碼匹配的記錄
+        sql = "SELECT * FROM users WHERE name = %s AND password = %s"
         val = (username, password)
         cursor.execute(sql, val)
         user = cursor.fetchone()
 
         cursor.close()
 
-        if user:
-            # 如果登入成功，將用戶狀態儲存在 session 中
-            session['logged_in'] = True
-            session['username'] = username
-            session['user_id'] = user[0]
-            return redirect('/')  # 登入成功後重定向到首頁
-        else:
-            print("登入失敗，請檢查用戶名和密碼。")
-    return redirect('/')  # 回傳登入表單頁面
+        # if user:
+        #     # 如果登入成功，將用戶狀態儲存在 session 中
+        #     session['logged_in'] = True
+        #     session['username'] = username
+        #     session['user_id'] = user[0]
+        #     return redirect('/')  # 登入成功後重定向到首頁
+        # else:
+    return jsonify({"error": "登入失敗，請檢查帳號和密碼"}),401
+    #return redirect('/')  # 回傳登入表單頁面
 
 @app.route('/api/logout')
 def logout():
@@ -150,9 +170,10 @@ def get_all_courses():
 # 紀錄學生觀看進度
 @app.route('/api/record_progress', methods=['POST'])
 def record_progress():
-    user_id = session['user_id']
-    course_id = request.form['course_id']
-    last_progress = request.form['last_progress']
+    data = request.get_json() 
+    user_id = data['user_id']
+    course_id = data['course_id']
+    last_progress = data['last_progress']
 
     cursor = db.cursor()
     sql = """
@@ -169,7 +190,7 @@ def record_progress():
 # 獲取學生觀看進度
 @app.route('/api/get_progress', methods=['GET'])
 def get_progress():
-    user_id = session['user_id']
+    user_id = request.args.get('id')
     course_id = request.args.get('course_id')
 
     cursor = db.cursor()

@@ -71,5 +71,37 @@
         <p>已經有帳號了？<a href="login.html">登入</a></p>
         <div class="footer">校外使用者請記錄密碼及取回驗證碼</div>
     </div>
+    <script>
+        document.querySelector('form').addEventListener('submit', function(event) {
+        event.preventDefault(); // 防止表單默認提交
+
+        const email = document.getElementById('email').value;
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const role = document.getElementById('role').value;
+        fetch('http://localhost:5001/api/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, username, password, role })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('註冊失敗');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // 假設後端返回成功信息，您可以在這裡處理成功的情況
+            alert('註冊成功！');
+            window.location.href = 'login.html'; // 重定向到登入頁面
+        })
+        .catch(error => {
+            console.error('錯誤:', error);
+            alert('註冊失敗，請檢查輸入的資料');
+        });
+    });
+    </script>
 </body>
 </html>

@@ -65,15 +65,14 @@
             event.preventDefault(); // 防止表單默認提交
 
             const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-
+            const password = document.getElementById('password').value;            
             // 發送 POST 請求到後端
-            fetch('http://localhost:5001/api/login', {
+            fetch('http://localhost:5001/api/log', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({username, password})
             })
             .then(response => {
                 if (!response.ok) {
@@ -83,6 +82,7 @@
             })
             .then(data => {
                 // 假設後端返回用戶 ID，並重定向到 index.html
+                //console.log(data);
                 window.location.href = `index.html?userId=${data.userId}`;
             })
             .catch(error => {
