@@ -12,8 +12,8 @@ app.config['JSON_AS_ASCII'] = False
 
 app.secret_key = 'your_secret_key'  # 需要設置一個秘密金鑰以便使用 session
 
-CORS(app, resources={r"/api/*": {"origins": "*"}})
-
+#CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:8080", "supports_credentials": True}})
 for i in range(5):  # 最多重試5次
     try:
         db = mysql.connector.connect(
@@ -61,25 +61,6 @@ def register():
     #return jsonify({"status": "success", "message": "註冊成功！"}), 200
     return  redirect('/')  # 註冊成功，返回200狀態碼
 
-@app.route('/api/log', methods=['GET', 'POST'])
-def test():
-    if request.method == 'POST':
-        # 接收表單提交的資料
-        data = request.get_json()
-        username = data['username']
-        password = data['password']
-
-        cursor = db.cursor()
-
-        # 查詢資料庫中是否有該用戶名和密碼匹配的記錄
-        sql = "SELECT * FROM users WHERE name = %s AND password = %s"
-        val = (username, password)
-        cursor.execute(sql, val)
-        user = cursor.fetchone()
-
-        cursor.close()
-        return jsonify({"userId": user[0]}),200
-
 @app.route('/api/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -97,16 +78,41 @@ def login():
         user = cursor.fetchone()
 
         cursor.close()
+        if user:
+            #request.sessionp['logged_in']=True
+            session['logged_in'] = True
+            session['username'] = username
+            session['user_id'] = user[0]
+            return jsonify({"userId": user[0],"username":session['username']}),200
+    else: 
+        return jsonify({'error': '用戶未登入'}), 401
 
-        # if user:
-        #     # 如果登入成功，將用戶狀態儲存在 session 中
-        #     session['logged_in'] = True
-        #     session['username'] = username
-        #     session['user_id'] = user[0]
-        #     return redirect('/')  # 登入成功後重定向到首頁
-        # else:
-    return jsonify({"error": "登入失敗，請檢查帳號和密碼"}),401
-    #return redirect('/')  # 回傳登入表單頁面
+# @app.route('/api/login', methods=['GET', 'POST'])
+# def login():
+#     if request.method == 'POST':
+#         # 接收表單提交的資料
+#         data = request.get_json()
+#         username = data['username']
+#         password = data['password']
+#         cursor = db.cursor()
+
+#         # 查詢資料庫中是否有該用戶名和密碼匹配的記錄
+#         sql = "SELECT * FROM users WHERE name = %s AND password = %s"
+#         val = (username, password)
+#         cursor.execute(sql, val)
+#         user = cursor.fetchone()
+
+#         cursor.close()
+
+#         # if user:
+#         #     # 如果登入成功，將用戶狀態儲存在 session 中
+#         #     session['logged_in'] = True
+#         #     session['username'] = username
+#         #     session['user_id'] = user[0]
+#         #     return redirect('/')  # 登入成功後重定向到首頁
+#         # else:
+#     return jsonify({"error": "登入失敗，請檢查帳號和密碼"}),401
+#     #return redirect('/')  # 回傳登入表單頁面
 
 @app.route('/api/logout')
 def logout():
@@ -117,8 +123,9 @@ def logout():
 
 @app.route('/api/user_status', methods=['GET'])
 def user_status():
+    #return jsonify({'logged_in':session['user_id']}),200
     if 'logged_in' in session and session['logged_in']:
-        return jsonify({'logged_in': True, 'username': session['username']})
+        return jsonify({'logged_in': True,"userId": session['user_id'],'username': session['username']})
     else:
         return jsonify({'logged_in': False})
 
@@ -175,30 +182,39 @@ def record_progress():
     course_id = data['course_id']
     last_progress = data['last_progress']
 
-    cursor = db.cursor()
-    sql = """
-        INSERT INTO video_watch_progress (user_id, course_id, last_progress)
-        VALUES (%s, %s, %s)
-        ON DUPLICATE KEY UPDATE last_progress = VALUES(last_progress), last_watched_time = NOW()
-    """
-    cursor.execute(sql, (user_id, course_id, last_progress))
-    db.commit()
-    cursor.close()
+    try:
+        cursor = db.cursor()
+        sql = """
+            INSERT INTO video_watch_progress (user_id, course_id, last_progress)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE last_progress = VALUES(last_progress), last_watched_time = NOW()
+        """
+        cursor.execute(sql, (user_id, course_id, last_progress))
+        db.commit()
+    except Error as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        cursor.close()
 
     return jsonify({"status": "success", "message": "Progress recorded."}), 200
 
 # 獲取學生觀看進度
 @app.route('/api/get_progress', methods=['GET'])
 def get_progress():
+    cursor = None  # 初始化 cursor 变量
     user_id = request.args.get('id')
     course_id = request.args.get('course_id')
+    try:
+        cursor = db.cursor()
+        sql = "SELECT last_progress FROM video_watch_progress WHERE user_id = %s AND course_id = %s"
+        cursor.execute(sql, (user_id, course_id))
 
-    cursor = db.cursor()
-    sql = "SELECT last_progress FROM video_watch_progress WHERE user_id = %s AND course_id = %s"
-    cursor.execute(sql, (user_id, course_id))
-    progress = cursor.fetchone()
-    cursor.close()
-
+        progress = cursor.fetchone()
+    except Error as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        if cursor is not None:  # 确保 cursor 被初始化后再关闭
+            cursor.close()
     if progress:
         return jsonify({"last_progress": progress[0]})
     else:

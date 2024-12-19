@@ -68,7 +68,7 @@
 <body>
     <header>
         <h1>數位教學平台</h1>
-        <div class="user-id">USERID: 123456   登出</div> <!-- 這裡顯示 USERID -->
+        <div id="user-id" class="user-id">USERID: 123456   登出</div> <!-- 這裡顯示 USERID -->
     </header>
     <div class="container">
         <div id="course-list" class="course-list">
@@ -86,6 +86,7 @@
         let currentVideo = ''; 
         let lastProgress = 0; 
         let player;
+        let progressInterval;
         let courseId = -1;
         let userId = 0;
         let progressData = {};
@@ -151,8 +152,6 @@
                 const courseList = document.getElementById('course-list');
                 data.courses.forEach (course =>{
                     console.log(course.title)
-                    //coursetitle.innerText = title; // 使用標題
-                    //courseList.appendChild(coursetitle);
                     const courseDiv = document.createElement('div');
                     courseDiv.className = 'course-title';
                     courseDiv.innerText =  course.title; // 使用课程标题
@@ -165,13 +164,14 @@
         
         //得到該id使用的progresss
         function getWatchProgress(id,courseid){
-            fetch('http://localhost:5001/api/get_progress?id=${Id}&course_id=${courseid}')
+            console.log('getWatchProgress','uddd',id,"cdddd",courseid)
+            fetch(`http://localhost:5001/api/get_progress?id=${id}&course_id=${courseId}`)
             .then(response => response.json())
             .then(data => {
+                console.log('getWatchProgress',data)
                 lastProgress = data.last_progress;
             })
             .catch(error => console.error('Error fetching courses:', error));
-
         }
         //儲存用戶資料並回傳
         function saveWatchProgress() {
@@ -182,6 +182,7 @@
             };            
         }
         function uploadWatchProgress(){
+            console.log('uploadWatchProgress')
             if(courseId != -1) {
                 fetch('http://localhost:5001/api/record_progress', {
                     method: 'POST',
@@ -197,16 +198,21 @@
                         console.error('Error saving progress');
                     }
                 })
-                .catch(error => console.error('Error:', error));
+                .then(data=>{
+                    console.log(data);
+                })
+                .catch(error => console.error('uploadWatchError:', error));
             }
         }   
         
         function userClickvideoLink(id,url){
             //先回傳目前記錄的課程id 進度條到資料庫
-            console.log(id,url);
-            courseId = id;
+            if(progressInterval){
+                clearInterval(progressInterval);
+            }
             saveWatchProgress();
             uploadWatchProgress();
+            courseId = id;
             //再抓取資料庫中目標課程的進度條
             getWatchProgress(userId,courseId);
             //再載入影片
@@ -230,9 +236,19 @@
             }
         }
         //獲取url中的userid
-        function getUserIdinUrl(){
-            const urlParams = new URLSearchParams(window.location.search);
-            userId = urlParams.get('userId');
+        function getUserId(){
+            fetch('http://localhost:5001/api/user_status', {
+                method: 'GET',
+                credentials: 'include'  // 確保包含 Cookie
+            })
+            .then(response => response.json())
+            .then(data => {
+                userId = data.userId;
+                username = data.username;
+                const useridplace = document.getElementById('user-id');
+                useridplace.innerText = userId + username;                
+            })
+            .catch(error => console.error('Error fetching courses:', error));
         }
         function extractVideoID(url) {
             const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
@@ -241,11 +257,11 @@
         }
         function onPlayerReady(event) {
             player.seekTo(lastProgress, true);
-            setInterval(recordProgress, 1000); // 每秒紀錄一次進度
+            progressInterval = setInterval(recordProgress, 10000); // 每秒紀錄一次進度
         }
         function recordProgress() {
             if (player) {
-                const currentTime = player.getCurrentTime(); // 當前撥放時間
+                const currentTime = Math.floor(player.getCurrentTime()); // 當前撥放時間
                 lastProgress = currentTime; // 紀錄當前撥放時間
                 console.log(`當前播放時間: ${currentTime}`);
             }
@@ -261,7 +277,7 @@
         // 在網頁開啟時要做的function
         window.onload = function() {
             //backendtest();
-            getUserIdinUrl();
+            getUserId();
             loadYoutubeAPI();
             getCourses();
         }
