@@ -68,7 +68,7 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;            
             // 發送 POST 請求到後端
-            fetch('http://localhost:5001/api/login', {
+            fetch('/api/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

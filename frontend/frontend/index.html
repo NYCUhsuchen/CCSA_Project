@@ -90,9 +90,10 @@
         let courseId = -1;
         let userId = 0;
         let progressData = {};
+        let isPlayerReady = false;
 
         function backendtest(){
-            fetch('http://localhost:5001/api/user_status')
+            fetch('/api/user_status')
             .then(response => {
                 if (!response.ok) {
                     throw new Error('網絡錯誤');
@@ -146,12 +147,11 @@
         
         //以下是網頁開啟時會從資料庫中抓取課程資料
         function getCourses(){
-            fetch('http://localhost:5001/api/courses')
+            fetch('/api/courses')
             .then(response => response.json())
             .then(data => {
                 const courseList = document.getElementById('course-list');
                 data.courses.forEach (course =>{
-                    console.log(course.title)
                     const courseDiv = document.createElement('div');
                     courseDiv.className = 'course-title';
                     courseDiv.innerText =  course.title; // 使用课程标题
@@ -164,11 +164,13 @@
         
         //得到該id使用的progresss
         function getWatchProgress(id, courseId) {
-            fetch(`http://localhost:5001/api/get_progress?id=${id}&course_id=${courseId}`)
+            fetch(`/api/get_progress?id=${id}&course_id=${courseId}`)
             .then(response => response.json())
             .then(data => {
-                lastProgress = data.latest_progress;
+                console.log("ddddddd",data)
+                lastProgress = data.last_progress;
                 viewCount = data.view_count;  // 直接使用後端回傳的 view_count
+                viewCount +=1;
                 document.getElementById('count').innerText = viewCount;
                 console.log(lastProgress);
             })
@@ -184,9 +186,9 @@
             };            
         }
         function uploadWatchProgress(){
-            console.log('uploadWatchProgress')
+            console.log('uploadWatchProgress',progressData)
             if(courseId != -1) {
-                fetch('http://localhost:5001/api/record_progress', {
+                fetch('/api/record_progress', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -202,44 +204,90 @@
                 })
                 .then(data=>{
                     console.log(data);
+                    console.log('uploadWatchProgress',progressData)
                 })
                 .catch(error => console.error('uploadWatchError:', error));
             }
         }   
         
-        function userClickvideoLink(id,url){
-            //先回傳目前記錄的課程id 進度條到資料庫
-            if(progressInterval){
+        function userClickvideoLink(id, url) {
+            if (progressInterval) {
                 clearInterval(progressInterval);
             }
-            saveWatchProgress();
-            uploadWatchProgress();
+            if(courseId!=-1){
+                saveWatchProgress();
+                uploadWatchProgress();
+            }
             courseId = id;
-            //再抓取資料庫中目標課程的進度條
-            getWatchProgress(userId,courseId);
-            //再載入影片
-            loadYouTubeVideo(url);
-
+            
+            // 先獲取進度，然後再載入影片
+            fetch(`/api/get_progress?id=${userId}&course_id=${courseId}`)
+                .then(response => response.json())
+                .then(data => {
+                    lastProgress = data.last_progress;
+                    viewCount = data.view_count;
+                    viewCount += 1;
+                    document.getElementById('count').innerText = viewCount;
+                    console.log("getprogress",data);
+                    loadYouTubeVideo(url);
+                    console.log("loadYouTubeVideo");
+                })
+                .catch(error => console.error('Error fetching progress:', error));
         }
+        
+
         function loadYouTubeVideo(url) {       
             const videoId = extractVideoID(url);
             if (videoId) {
-                const iframe = document.getElementById('youtube-player');
-                iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`; // 啟用JavaScript API
-                // incrementViewCount(); // 觀看次數++
-                currentVideo = videoId; // 更新當前影片
-                player = new YT.Player(iframe, {
-                    events: {
-                        'onReady': onPlayerReady
+                console.log("videoId:", videoId);
+                if (player) {
+                    console.log("播放器已存在");
+                    let seekDone = false; // 添加標記
+
+                    // 如果播放器已存在，直接載入新影片
+                    player.loadVideoById(videoId);
+                    
+                    // 確保在視頻載入後再設置進度
+                    player.addEventListener('onStateChange', function(event) {
+                        // 當視頻開始播放時 (state = 1) 且還沒有設置過進度
+                        if (event.data === YT.PlayerState.PLAYING && !seekDone && lastProgress != 0) {
+                            console.log("設置進度到:", lastProgress);
+                            player.seekTo(lastProgress, true);
+                            seekDone = true; // 標記已經設置過進度
+                        }
+                    });
+
+                    if (progressInterval) {
+                        clearInterval(progressInterval);
                     }
-                });
+                    progressInterval = setInterval(recordProgress, 10000);
+                } else {
+                    // 首次創建播放器
+                    console.log("首次創建播放器");
+                    const iframe = document.getElementById('youtube-player');
+                    iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
+                    let seekDone = false; // 添加標記
+
+                    player = new YT.Player(iframe, {
+                        events: {
+                            'onReady': onPlayerReady,
+                            'onStateChange': function(event) {
+                                if (event.data === YT.PlayerState.PLAYING && !seekDone && lastProgress != 0) {
+                                    console.log("首次播放，設置進度到:", lastProgress);
+                                    player.seekTo(lastProgress, true);
+                                    seekDone = true; // 標記已經設置過進度
+                                }
+                            }
+                        }
+                    });
+                }
             } else {
                 alert("無效連結。");
             }
         }
         //獲取url中的userid
         function getUserId(){
-            fetch('http://localhost:5001/api/user_status', {
+            fetch('/api/user_status', {
                 method: 'GET',
                 credentials: 'include'  // 確保包含 Cookie
             })
@@ -258,8 +306,18 @@
             return match ? match[1] : null; // 返回ID
         }
         function onPlayerReady(event) {
-            player.seekTo(lastProgress, true);
-            progressInterval = setInterval(recordProgress, 10000); // 每秒紀錄一次進度
+            console.log("播放器準備就緒");
+            isPlayerReady = true;
+            if (lastProgress != 0) {
+                console.log("onPlayerReady - 設置進度到:", lastProgress);
+                setTimeout(() => {
+                    event.target.seekTo(lastProgress, true);
+                }, 1000);
+            }
+            if (progressInterval) {
+                clearInterval(progressInterval);
+            }
+            progressInterval = setInterval(recordProgress, 10000);
         }
         function recordProgress() {
             if (player) {

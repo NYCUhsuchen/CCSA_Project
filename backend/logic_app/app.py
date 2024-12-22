@@ -183,27 +183,59 @@ def get_all_courses():
 # 紀錄學生觀看進度
 @app.route('/api/record_progress', methods=['POST'])
 def record_progress():
-    data = request.get_json() 
-    user_id = data['user_id']
-    course_id = data['course_id']
-    last_progress = data['last_progress']
-    view_count = data['view_count']
-
+    cursor = None
     try:
-        cursor = db.cursor()
-        sql = """
-            INSERT INTO video_watch_progress (user_id, course_id, last_progress,view_count)
-            VALUES (%s, %s, %s,%s)
-            ON DUPLICATE KEY UPDATE last_progress = VALUES(last_progress), last_watched_time = NOW()
-        """
-        cursor.execute(sql, (user_id, course_id, last_progress,view_count))
-        db.commit()
-    except Error as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-    finally:
-        cursor.close()
+        data = request.get_json()
+        user_id = data.get('user_id')
+        course_id = data.get('course_id')
+        last_progress = data.get('last_progress')
+        view_count = data.get('view_count')
 
-    return jsonify({"status": "success", "message": "Progress recorded."}), 200
+        cursor = db.cursor()
+        # 先檢查是否存在記錄
+        check_sql = """
+            SELECT id FROM video_watch_progress 
+            WHERE user_id = %s AND course_id = %s 
+            ORDER BY last_watched_time DESC LIMIT 1
+        """
+        cursor.execute(check_sql, (user_id, course_id))
+        existing_record = cursor.fetchone()
+
+        if existing_record:
+            # 更新現有記錄
+            update_sql = """
+                UPDATE video_watch_progress 
+                SET last_progress = %s, view_count = %s, last_watched_time = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """
+            cursor.execute(update_sql, (last_progress, view_count, existing_record[0]))
+        else:
+            # 創建新記錄
+            insert_sql = """
+                INSERT INTO video_watch_progress 
+                (user_id, course_id, last_progress, view_count) 
+                VALUES (%s, %s, %s, %s)
+            """
+            cursor.execute(insert_sql, (user_id, course_id, last_progress, view_count))
+        
+        db.commit()
+        return jsonify({"status": "success"})
+
+    except Exception as e:
+        print(f"Error in record_progress: {str(e)}")
+        if cursor:
+            try:
+                db.rollback()
+            except Exception as rollback_error:
+                print(f"Rollback error: {str(rollback_error)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except Exception as close_error:
+                print(f"Cursor close error: {str(close_error)}")
 
 # 獲取學生觀看進度
 @app.route('/api/get_progress', methods=['GET'])
@@ -214,36 +246,30 @@ def get_progress():
     try:
         cursor = db.cursor()
         sql = """
-            SELECT last_progress, last_watched_time
+            SELECT last_progress, view_count
             FROM video_watch_progress 
             WHERE user_id = %s AND course_id = %s 
             ORDER BY last_watched_time DESC
+            LIMIT 1
         """
         cursor.execute(sql, (user_id, course_id))
 
-        progress_records = cursor.fetchall()
+        record = cursor.fetchone()
     except Error as e:
         return jsonify({"status": "error", "message": str(e)}), 500
     finally:
         if cursor is not None:
             cursor.close()
     
-    if progress_records:
-        progress_list = [{
-            "last_progress": record[0],
-            "last_watched_time": record[1]
-        } for record in progress_records]
-        
+    if record:
         return jsonify({
-            "progress_records": progress_list,
-            "latest_progress": progress_list[0]["last_progress"],
-            "view_count": len(progress_list)  # 觀看次數為記錄的數量
+            "last_progress": record[0],
+            "view_count": record[1]
         })
     else:
         return jsonify({
-            "progress_records": [],
-            "latest_progress": 0,
-            "view_count": 0  # 沒有記錄時觀看次數為0
+            "last_progress": 0,
+            "view_count": 0
         })
 # 上傳檔案
 # @app.route('/api/assignments', methods=['POST'])
