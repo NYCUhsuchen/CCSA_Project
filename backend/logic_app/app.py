@@ -37,29 +37,35 @@ else:
 @app.route('/api/register', methods=['POST'])
 def register():
     # 從表單中接收數據
-    email = request.form['email']
-    username = request.form['username']
-    password = request.form['password']
-    role = request.form['role', 'student']
+    data = request.json
+    email = data['email']
+    username = data['username']
+    password = data['password']
+    role = data.get('role', 'student')
     
 
     # 檢查是否已存在相同的用戶名或信箱
-    cursor = db.cursor()
-    check_user_sql = "SELECT * FROM Users WHERE name = %s OR email = %s"
-    cursor.execute(check_user_sql, (username, email))
-    existing_user = cursor.fetchone()  # 獲取第一行結果，如果存在，則表示已經有此用戶
+    try:
+        cursor = db.cursor()
+        # 使用参數化查詢防止 SQL 注入
+        check_user_sql = "SELECT * FROM users WHERE name = %s OR email = %s"
+        cursor.execute(check_user_sql, (username, email))
+        existing_user = cursor.fetchone()
 
-    if existing_user:
+        if existing_user:
+            return jsonify({"status": "error", "message": "用戶名或信箱已存在"}), 400
+
+        insert_user_sql = "INSERT INTO users (name, password, email, role) VALUES (%s, %s, %s, %s)"
+        cursor.execute(insert_user_sql, (username, password, email, role))
+        db.commit()
+        
+        return jsonify({"status": "success", "message": "註冊成功！"}), 200
+        
+    except Exception as e:
+        db.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
         cursor.close()
-        return redirect('/') # 返回400錯誤，表示用戶名或信箱已存在
-
-    # 插入新用戶資料
-    insert_user_sql = "INSERT INTO Users (name, password, email, role) VALUES (%s, %s, %s, %s)"
-    cursor.execute(insert_user_sql, (username, password, email, role))
-    db.commit()  # 提交變更
-    cursor.close()
-    #return jsonify({"status": "success", "message": "註冊成功！"}), 200
-    return  redirect('/')  # 註冊成功，返回200狀態碼
 
 @app.route('/api/login', methods=['GET', 'POST'])
 def login():
@@ -181,15 +187,16 @@ def record_progress():
     user_id = data['user_id']
     course_id = data['course_id']
     last_progress = data['last_progress']
+    view_count = data['view_count']
 
     try:
         cursor = db.cursor()
         sql = """
-            INSERT INTO video_watch_progress (user_id, course_id, last_progress)
-            VALUES (%s, %s, %s)
+            INSERT INTO video_watch_progress (user_id, course_id, last_progress,view_count)
+            VALUES (%s, %s, %s,%s)
             ON DUPLICATE KEY UPDATE last_progress = VALUES(last_progress), last_watched_time = NOW()
         """
-        cursor.execute(sql, (user_id, course_id, last_progress))
+        cursor.execute(sql, (user_id, course_id, last_progress,view_count))
         db.commit()
     except Error as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -201,25 +208,43 @@ def record_progress():
 # 獲取學生觀看進度
 @app.route('/api/get_progress', methods=['GET'])
 def get_progress():
-    cursor = None  # 初始化 cursor 变量
+    cursor = None
     user_id = request.args.get('id')
     course_id = request.args.get('course_id')
     try:
         cursor = db.cursor()
-        sql = "SELECT last_progress FROM video_watch_progress WHERE user_id = %s AND course_id = %s"
+        sql = """
+            SELECT last_progress, last_watched_time
+            FROM video_watch_progress 
+            WHERE user_id = %s AND course_id = %s 
+            ORDER BY last_watched_time DESC
+        """
         cursor.execute(sql, (user_id, course_id))
 
-        progress = cursor.fetchone()
+        progress_records = cursor.fetchall()
     except Error as e:
         return jsonify({"status": "error", "message": str(e)}), 500
     finally:
-        if cursor is not None:  # 确保 cursor 被初始化后再关闭
+        if cursor is not None:
             cursor.close()
-    if progress:
-        return jsonify({"last_progress": progress[0]})
+    
+    if progress_records:
+        progress_list = [{
+            "last_progress": record[0],
+            "last_watched_time": record[1]
+        } for record in progress_records]
+        
+        return jsonify({
+            "progress_records": progress_list,
+            "latest_progress": progress_list[0]["last_progress"],
+            "view_count": len(progress_list)  # 觀看次數為記錄的數量
+        })
     else:
-        return jsonify({"last_progress": 0})  # 默認從頭開始
-
+        return jsonify({
+            "progress_records": [],
+            "latest_progress": 0,
+            "view_count": 0  # 沒有記錄時觀看次數為0
+        })
 # 上傳檔案
 # @app.route('/api/assignments', methods=['POST'])
 # def submit_assignment():

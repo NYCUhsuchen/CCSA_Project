@@ -163,22 +163,24 @@
         }
         
         //得到該id使用的progresss
-        function getWatchProgress(id,courseid){
-            console.log('getWatchProgress','uddd',id,"cdddd",courseid)
+        function getWatchProgress(id, courseId) {
             fetch(`http://localhost:5001/api/get_progress?id=${id}&course_id=${courseId}`)
             .then(response => response.json())
             .then(data => {
-                console.log('getWatchProgress',data)
-                lastProgress = data.last_progress;
+                lastProgress = data.latest_progress;
+                viewCount = data.view_count;  // 直接使用後端回傳的 view_count
+                document.getElementById('count').innerText = viewCount;
+                console.log(lastProgress);
             })
-            .catch(error => console.error('Error fetching courses:', error));
-        }
+            .catch(error => console.error('Error fetching progress:', error));
+}
         //儲存用戶資料並回傳
         function saveWatchProgress() {
             progressData = {
                 user_id: userId,
                 course_id: courseId,
-                last_progress: lastProgress
+                last_progress: lastProgress,
+                view_count: viewCount
             };            
         }
         function uploadWatchProgress(){
@@ -224,7 +226,7 @@
             if (videoId) {
                 const iframe = document.getElementById('youtube-player');
                 iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`; // 啟用JavaScript API
-                incrementViewCount(); // 觀看次數++
+                // incrementViewCount(); // 觀看次數++
                 currentVideo = videoId; // 更新當前影片
                 player = new YT.Player(iframe, {
                     events: {

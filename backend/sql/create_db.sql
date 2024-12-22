@@ -30,6 +30,7 @@ CREATE TABLE video_watch_progress (
     course_id INT NOT NULL,
     last_watched_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- 退出觀看的時間
     last_progress INT NOT NULL, -- 用戶觀看影片的進度（秒數）
+    view_count INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),

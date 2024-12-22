@@ -73,35 +73,61 @@
     </div>
     <script>
         document.querySelector('form').addEventListener('submit', function(event) {
-        event.preventDefault(); // 防止表單默認提交
+    event.preventDefault();
 
-        const email = document.getElementById('email').value;
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        const role = document.getElementById('role').value;
-        fetch('http://localhost:5001/api/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email, username, password, role })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('註冊失敗');
-            }
-            return response.json();
-        })
-        .then(data => {
-            // 假設後端返回成功信息，您可以在這裡處理成功的情況
-            alert('註冊成功！');
-            window.location.href = 'login.html'; // 重定向到登入頁面
-        })
-        .catch(error => {
-            console.error('錯誤:', error);
-            alert('註冊失敗，請檢查輸入的資料');
-        });
+    // 添加基本的輸入驗證
+    const email = document.getElementById('email').value.trim();
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const role = document.getElementById('role').value;
+
+    // 驗證輸入
+    if (!email || !username || !password) {
+        alert('請填寫所有必要欄位');
+        return;
+    }
+
+    // 驗證電子郵件格式
+    if (!isValidEmail(email)) {
+        alert('請輸入有效的電子郵件地址');
+        return;
+    }
+
+    const data = {
+        email: email,
+        username: username,
+        password: password,
+        role: role
+    };
+
+    fetch('http://localhost:5001/api/register', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data),
+        credentials: 'include'  // 如果需要處理跨域 cookies
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert(data.message);
+            window.location.href = '/login.html';
+        } else {
+            throw new Error(data.message || '註冊失敗');
+        }
+    })
+    .catch(error => {
+        console.error('錯誤:', error);
+        alert(error.message || '註冊失敗，請稍後再試');
     });
+});
+
+// 電子郵件驗證函數
+function isValidEmail(email) {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailPattern.test(email);
+}
     </script>
 </body>
 </html>
