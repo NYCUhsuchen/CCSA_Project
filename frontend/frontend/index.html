@@ -30,6 +30,51 @@
         .course-title {
             cursor: pointer;
             margin: 5px 0;
+            padding: 10px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            display: flex;           /* 使用 flex 布局 */
+            justify-content: space-between;  /* 內容分散對齊 */
+            align-items: center;     /* 垂直居中 */
+        }
+        .course-title:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* 已觀看的課程樣式 */
+        .course-title.watched {
+            color: red;
+            font-weight: bold;
+        }
+        .new-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            background-color: #ff6b6b;
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: auto;      /* 自動左邊距，推到右邊 */
+        }
+
+        .memory-curve {
+            width: 100%;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        #youtube-player {
+            width: 100%;
+            aspect-ratio: 16/9;
+        }
+        .memory-curve h2 {
+            margin-bottom: 15px;
+        }
+        #memoryChart {
+            width: 100% !important;
+            height: 300px !important;
         }
         #view-count {
             margin-top: 10px;
@@ -37,24 +82,32 @@
         .user-id {
             font-size: 16px;
         }
+        
+        #video-container {
+            width: 100%;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
         .container {
             display: flex;
             padding: 20px;
+            gap: 20px; /* 添加元素間距 */
         }
+
         .course-list {
-            flex: 1;
-            margin-right: 20px;
+            flex: 1; /* 佔用 1/3 空間 */
             background-color: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 33%; /* 限制最大寬度為 1/3 */
         }
-        .video-container {
-            width: 300px;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        .right-panel {
+            flex: 2; /* 佔用 2/3 空間 */
+            display: flex;
+            flex-direction: column;
         }
         h2 {
             color: #333;
@@ -63,7 +116,12 @@
         .course-item {
             margin: 10px 0;
         }
+        
     </style>
+     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
 </head>
 <body>
     <header>
@@ -72,15 +130,19 @@
     </header>
     <div class="container">
         <div id="course-list" class="course-list">
-            <h2>當期課程</h2>
-            
+            <h2>當期課程</h2>            
         </div>
-        <div id="video-container">
-            <iframe id="youtube-player" width="600" height="400" src="" frameborder="0" allowfullscreen></iframe>
-            <div id="view-count">觀看次數: <span id="count">0</span></div>
+        <div class="right-panel">
+            <div id="memory-curve" class="memory-curve">
+                <h2>課程記憶保留曲線</h2>
+                <canvas id="memoryChart"></canvas>
+            </div>
+            <div id="video-container" style="display: none;">
+                <iframe id="youtube-player" width="600" height="400" src="" frameborder="0" allowfullscreen></iframe>
+                <div id="view-count" style="display: none;">觀看次數: <span id="count">0</span></div>
+            </div>
         </div>
     </div>
-    
     <script>
         let viewCount = 0; 
         let currentVideo = ''; 
@@ -116,39 +178,74 @@
 
         }
         //以下是網頁開啟時會從資料庫中抓取課程資料
-        function getCourses(){
-            fetch('/api/courses')
-            .then(response => response.json())
-            .then(data => {
-                const courseList = document.getElementById('course-list');
-                data.courses.forEach (course =>{
-                    const courseDiv = document.createElement('div');
-                    courseDiv.className = 'course-title';
-                    courseDiv.innerText =  course.title; // 使用课程标题
-                    courseDiv.onclick = () => userClickvideoLink(course.id,course.video_url); // 点击事件
-                    courseList.appendChild(courseDiv);
-                });
-            })
-            .catch(error => console.error('Error fetching courses:', error));
+        function getCourses() {
+    // 首先獲取用戶觀看過的課程
+            fetch(`/api/user_watched_courses?user_id=${userId}`)
+                .then(response => response.json())
+                .then(watchedData => {
+                    console.log(watchedData);
+                    // 獲取所有課程
+                    return fetch('/api/courses')
+                        .then(response => response.json())
+                        .then(data => {
+                            const courseList = document.getElementById('course-list');
+                            data.courses.forEach(course => {
+                                const courseDiv = document.createElement('div');
+                                courseDiv.className = 'course-title';
+                                courseDiv.id = `course_${course.id}`;
+                                
+                                // 創建標題文字的 span
+                                const titleSpan = document.createElement('span');
+                                titleSpan.innerText = course.title;
+                                courseDiv.appendChild(titleSpan);
+                                
+                                // 如果課程沒有被觀看過，添加 NEW 標籤
+                                if (!watchedData.watched_courses.includes(course.id)) {
+                                    const newTag = document.createElement('span');
+                                    newTag.className = 'new-tag';
+                                    newTag.innerText = 'NEW';
+                                    courseDiv.appendChild(newTag);
+                                }
+                                
+                                courseDiv.onclick = () => userClickvideoLink(course.id, course.video_url);
+                                courseList.appendChild(courseDiv);
+                            });
+                            loadMemoryData();
+                        });
+                })
+                .catch(error => console.error('Error fetching courses:', error));
         }
         
         //得到該id使用的progresss
-        function getWatchProgress(course_Id,url) {                   
+        function getWatchProgress(course_Id, url) {                   
             courseId = course_Id;
-            // 先獲取進度，然後再載入影片
             fetch(`/api/get_progress?id=${userId}&course_id=${course_Id}`)
                 .then(response => response.json())
                 .then(data => {
                     lastProgress = data.last_progress;
                     viewCount = data.view_count;
                     viewCount += 1;
-                    document.getElementById('count').innerText = viewCount;
-                    console.log("getprogress",data,url);
+                    
+                    // 顯示觀看次數元素並更新數值
+                    const viewCountDiv = document.getElementById('view-count');
+                    const countSpan = document.getElementById('count');
+                    if (viewCountDiv && countSpan) {
+                        viewCountDiv.style.display = 'block';  // 顯示元素
+                        countSpan.innerText = viewCount;
+                    }
+                    
+                    console.log("getprogress", data, url);
                     loadYouTubeVideo(url);
                     console.log("loadYouTubeVideo");
                 })
-                .catch(error => console.error('Error fetching progress:', error));
-}
+                .catch(error => {
+                    console.error('Error fetching progress:', error);
+                    // 錯誤處理 - 保持元素隱藏
+                    viewCount = 0;
+                    lastProgress = 0;
+                    loadYouTubeVideo(url);
+                });
+        }
         //儲存用戶資料並回傳
         function saveWatchProgress() {
             progressData = {
@@ -182,23 +279,32 @@
                 .catch(error => console.error('uploadWatchError:', error));
             }
         }   
-        
         function userClickvideoLink(id, url) {
-            console.log('userClickvideoLink',courseId);
+            console.log('userClickvideoLink', courseId);
             if (progressInterval) {
                 clearInterval(progressInterval);
             }
-            if(courseId!=-1){
+            
+            // 隱藏記憶曲線，顯示影片
+            document.getElementById('memory-curve').style.display = 'none';
+            document.getElementById('video-container').style.display = 'block';
+
+            // 移除 NEW 標籤
+            const courseDiv = document.getElementById(`course_${id}`);
+            const newTag = courseDiv.querySelector('.new-tag');
+            if (newTag) {
+                newTag.remove();
+            }
+
+            if(courseId != -1){
                 saveWatchProgress();
-                uploadWatchProgress(id,url);
+                uploadWatchProgress(id, url);
             }   
             else{
-                getWatchProgress(id,url);
+                getWatchProgress(id, url);
             }
-            console.log('userClickvideoLink',courseId);
+            console.log('userClickvideoLink', courseId);
         }
-        
-
         function loadYouTubeVideo(url) {       
             const videoId = extractVideoID(url);
             if (videoId) {
@@ -259,7 +365,8 @@
                 userId = data.userId;
                 username = data.username;
                 const useridplace = document.getElementById('user-id');
-                useridplace.innerText = userId + username;                
+                useridplace.innerText = userId + username;  
+                getCourses();              
             })
             .catch(error => console.error('Error fetching courses:', error));
         }
@@ -289,7 +396,6 @@
                 console.log(`當前播放時間: ${currentTime}`);
             }
         }
-
         function loadYoutubeAPI(){
             // load YouTube API
             const tag = document.createElement('script');
@@ -297,19 +403,109 @@
             const firstScriptTag = document.getElementsByTagName('script')[0];
             firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
         }
+        function drawMemoryChart(data) {
+            const ctx = document.getElementById('memoryChart').getContext('2d');
+            const courseIds = [...new Set(data.map(record => record.course_id))];
+            // 生成時間點（改為每天）
+            const generateTimePoints = () => {
+                const now = new Date();
+                const timePoints = [];
+                for (let i = 0; i <= 7; i++) {  // 改為 7 天
+                    const time = new Date(now - i * 24 * 60 * 60 * 1000); // 每天一個點
+                    timePoints.unshift(time);
+                }
+                return timePoints;
+            };
+            const timePoints = generateTimePoints();
+            const datasets = courseIds.map(courseId => {
+                const courseData = data.find(record => record.course_id === courseId);
+                console.log(courseData);
+                const color = `hsl(${Math.random() * 360}, 70%, 50%)`;
+                return {
+                    label: `課程 ${courseId}`,
+                    data: timePoints.map(time => {
+                        if (!courseData) return null;
+                        const watchTime = new Date(courseData.last_watched_time);
+                        const daysDiff = Math.max(0, (time - watchTime) / (1000 * 60 * 60 * 24)); // 改為計算天數差
+                        const stabilityFactor = Math.pow(2, courseData.view_count - 1) * 1; // 調整穩定性因子
+                        const retention = 100 * Math.exp(-daysDiff / stabilityFactor);
+                        return Math.max(1, Math.min(100, retention));
+                    }),
+                    borderColor: color,
+                    backgroundColor: color + '20',
+                    tension: 0.4,
+                    fill: false
+                };
+            });
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    // 將時間格式改為顯示日期
+                    labels: timePoints.map(time => time.toLocaleDateString()),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: '記憶保留率 (%)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '日期'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '課程記憶保留曲線'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        // 獲取數據並繪製圖表
+        function loadMemoryData() {
+            fetch('http://localhost:5001/api/memory_retention')
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status === 'success') {
+                        drawMemoryChart(result.data);
+                    }
+                })
+                .catch(error => console.error('Error fetching memory data:', error));
+        }
+
         // 在網頁開啟時要做的function
         window.onload = function() {
             //backendtest();
             getUserId();
             loadYoutubeAPI();
-            getCourses();
+            const container = document.getElementById('memory-curve-container');
+                if (container) {
+                    ReactDOM.render(React.createElement(MemoryCurve), container);
+                }
         }
+
         function incrementViewCount() {
             viewCount++; // count++
             document.getElementById('count').innerText = viewCount; // update
-        }
-
-        
+        }       
     </script>
 </body>
 </html>

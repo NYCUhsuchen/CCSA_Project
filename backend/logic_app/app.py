@@ -236,7 +236,79 @@ def record_progress():
                 cursor.close()
             except Exception as close_error:
                 print(f"Cursor close error: {str(close_error)}")
-
+@app.route('/api/memory_retention', methods=['GET'])
+def get_memory_retention():
+    cursor = None
+    try:
+        cursor = db.cursor(dictionary=True)
+        sql = """
+            SELECT course_id, last_watched_time, last_progress, view_count
+            FROM video_watch_progress
+            ORDER BY course_id, last_watched_time
+        """
+        cursor.execute(sql)
+        records = cursor.fetchall()
+        
+        return jsonify({
+            "status": "success",
+            "data": records
+        })
+        
+    except Error as e:
+        print(f"Database error: {e}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+    finally:
+        if cursor:
+            cursor.close()   
+@app.route('/api/user_watched_courses', methods=['GET'])
+def get_user_watched_courses():
+    cursor = None
+    try:
+        cursor = db.cursor()
+        user_id = request.args.get('user_id')
+        
+        print(f"Fetching watched courses for user_id: {user_id}")  # 記錄用戶ID
+        
+        sql = """
+            SELECT DISTINCT course_id 
+            FROM video_watch_progress 
+            WHERE user_id = %s
+        """
+        cursor.execute(sql, (user_id,))
+        watched_courses = [row[0] for row in cursor.fetchall()]
+        
+        print(f"Found watched courses: {watched_courses}")  # 記錄查詢結果
+        
+        # 驗證數據庫中是否有記錄
+        cursor.execute("SELECT COUNT(*) FROM video_watch_progress")
+        total_records = cursor.fetchone()[0]
+        print(f"Total records in video_watch_progress: {total_records}")
+        
+        # 檢查特定用戶的記錄
+        cursor.execute("SELECT COUNT(*) FROM video_watch_progress WHERE user_id = %s", (user_id,))
+        user_records = cursor.fetchone()[0]
+        print(f"Records for user {user_id}: {user_records}")
+        
+        return jsonify({
+            "watched_courses": watched_courses,
+            "debug_info": {
+                "user_id": user_id,
+                "total_records": total_records,
+                "user_records": user_records
+            }
+        })
+    except Error as e:
+        print(f"Database error: {e}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+    finally:
+        if cursor:
+            cursor.close()
 # 獲取學生觀看進度
 @app.route('/api/get_progress', methods=['GET'])
 def get_progress():
